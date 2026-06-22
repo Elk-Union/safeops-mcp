@@ -59,6 +59,7 @@ def trigger_ledger_verification(
 ):
     """
     Validates if the historical SHA256 chain has been broken or tampered with.
+    """
     # Wait, we wrote the verification function inside app.core.audit_utils. Let's load that!
     from ..core.audit_utils import AuditLedger
     
