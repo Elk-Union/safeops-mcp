@@ -179,6 +179,43 @@ pip install mcp requests
 
 ---
 
+## Quick Start (Docker Compose — Recommended)
+
+Alternatively, you can run the entire SafeOps ecosystem (PostgreSQL, Redis, FastAPI Backend, Next.js Dashboard) in containerized services:
+
+### Prerequisites
+- Docker and Docker Compose installed and running on your system.
+
+### 1. Run the Docker Stack
+From the repository root, build and start all services in the background:
+```bash
+docker compose up --build -d
+```
+
+This starts:
+- **PostgreSQL Database** (`safeops_db`) on port `5432`
+- **Redis Cache** (`safeops_redis`) on port `6379`
+- **FastAPI API Backend** (`safeops_backend`) on port `8000`
+- **Next.js Dashboard** (`safeops_frontend`) on port `3000`
+
+### 2. Verify and Seed Database
+The containers will initialize the Postgres database and seed initial configurations automatically. To seed the 15 default tools on the Docker-hosted backend, obtain a token and send a request:
+```bash
+# Log in to get JWT token
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@safeops.io","password":"safeops-admin"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# Seed the tools catalog
+curl -X POST http://localhost:8000/api/v1/tools/seed \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The Next.js security dashboard will be available immediately at `http://localhost:3000`.
+
+---
+
 ## Connecting AI Agents
 
 ### Claude Code / Antigravity / Any MCP Client
