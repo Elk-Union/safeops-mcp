@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Dict, Any, List, Optional
-from uuid import UUID
 from datetime import datetime
 
 # Auth Schemas
@@ -19,12 +18,12 @@ class UserLogin(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role_id: UUID
+    role_id: str
 
 class UserResponse(BaseModel):
-    id: UUID
+    id: str
     email: str
-    role_id: UUID
+    role_id: str
     is_active: bool
     created_at: datetime
 
@@ -34,13 +33,13 @@ class UserResponse(BaseModel):
 # Client Schemas
 class ClientRegister(BaseModel):
     name: str
-    role_id: UUID
+    role_id: str
     ip_whitelist: Optional[str] = None
 
 class ClientResponse(BaseModel):
-    id: UUID
+    id: str
     name: str
-    role_id: UUID
+    role_id: str
     ip_whitelist: Optional[str]
     created_at: datetime
     last_active: Optional[datetime]
@@ -54,7 +53,7 @@ class ClientCreatedResponse(ClientResponse):
 
 # Tool Schemas
 class ToolResponse(BaseModel):
-    id: UUID
+    id: str
     name: str
     category: str
     description: Optional[str]
@@ -67,16 +66,16 @@ class ToolResponse(BaseModel):
 
 # Policy Schemas
 class PolicyCreate(BaseModel):
-    role_id: UUID
-    tool_id: UUID
+    role_id: str
+    tool_id: str
     environment: str = "*"
     effect: str # allow, deny, approval_required
     rules_json: Optional[Dict[str, Any]] = None
 
 class PolicyResponse(BaseModel):
-    id: UUID
-    role_id: UUID
-    tool_id: UUID
+    id: str
+    role_id: str
+    tool_id: str
     environment: str
     effect: str
     rules_json: Optional[Dict[str, Any]]
@@ -95,7 +94,7 @@ class RiskAssessmentResponse(BaseModel):
     explanation: str
 
 class ExecutionResponse(BaseModel):
-    id: UUID
+    id: str
     tool_name: str
     arguments: Optional[Dict[str, Any]]
     environment: str
@@ -118,11 +117,11 @@ class ApprovalDecision(BaseModel):
     reason: Optional[str] = None
 
 class ApprovalResponse(BaseModel):
-    id: UUID
-    execution_id: UUID
+    id: str
+    execution_id: str
     status: str
     reason: Optional[str]
-    approver_id: Optional[UUID]
+    approver_id: Optional[str]
     decided_at: Optional[datetime]
     created_at: datetime
     tool_name: str
@@ -136,7 +135,7 @@ class ApprovalResponse(BaseModel):
 
 # Audit Log Schemas
 class AuditLogResponse(BaseModel):
-    id: UUID
+    id: str
     timestamp: datetime
     client_name: str
     tool_name: str
@@ -151,8 +150,8 @@ class AuditLogResponse(BaseModel):
 
 # Rollback Schemas
 class RollbackResponse(BaseModel):
-    id: UUID
-    execution_id: UUID
+    id: str
+    execution_id: str
     snapshot_type: str
     snapshot_target: str
     created_at: datetime

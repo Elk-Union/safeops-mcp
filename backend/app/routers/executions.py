@@ -251,7 +251,20 @@ def run_sandbox_execution(
             approved_by=approver_id
         )
         
-        return ExecutionResponse.model_validate(execution)
+        return ExecutionResponse(
+            id=execution.id,
+            tool_name=tool_name,
+            arguments=arguments,
+            environment=execution.environment,
+            status=execution.status,
+            exit_code=execution.exit_code,
+            stdout=execution.stdout,
+            stderr=execution.stderr,
+            created_at=execution.created_at,
+            completed_at=execution.completed_at,
+            risk_score=risk_score,
+            risk_explanation=execution.risk_assessment.explanation if execution.risk_assessment else None
+        )
 
     # Resolve backup path targets (e.g. for configs: nvim, emacs)
     target_dir = arguments.get("target_dir")

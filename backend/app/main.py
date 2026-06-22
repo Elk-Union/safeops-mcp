@@ -72,12 +72,12 @@ def seed_database():
             superadmin_role = role_map["superadmin"]
             admin_user = User(
                 email=admin_email,
-                hashed_password=get_password_hash("safeops-password-change-me"),
+                hashed_password=get_password_hash("safeops-admin"),
                 role_id=superadmin_role.id
             )
             db.add(admin_user)
             db.commit()
-            print(f"[SafeOps Startup] Seeding default administrator: {admin_email} (password: 'safeops-password-change-me')")
+            print(f"[SafeOps Startup] Seeding default administrator: {admin_email} (password: 'safeops-admin')")
             
     except Exception as e:
         print(f"[SafeOps Startup Warning] DB seeding failed: {str(e)}")
