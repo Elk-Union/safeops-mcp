@@ -4,7 +4,7 @@ import sys
 import requests
 from typing import Dict, Any, List
 import mcp.types as types
-from mcp.server import Server
+from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 
@@ -196,7 +196,7 @@ async def main():
                 server_name="safeops",
                 server_version="1.0.0",
                 capabilities=server.get_capabilities(
-                    notification_options=types.NotificationOptions(),
+                    notification_options=NotificationOptions(),
                     experimental_capabilities={},
                 ),
             ),
