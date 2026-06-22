@@ -3,35 +3,36 @@
 @import 'tailwindcss/utilities';
 
 body {
-  background-color: #09090b;
-  color: #fafafa;
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Custom scrollbar styling for cyber dark aesthetics */
+/* Custom scrollbar styling for clean light dashboard */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: #f8fafc;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #94a3b8;
 }
 
 .glow-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease-in-out;
 }
 
 .glow-card:hover {
-  border-color: rgba(0, 240, 255, 0.3);
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.08);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.05);
 }
+
