@@ -122,7 +122,7 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
   -d '{"email":"admin@safeops.io","password":"safeops-admin"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-# Seed 15 default tools
+# Seed 16 default tools
 curl -X POST http://localhost:8000/api/v1/tools/seed \
   -H "Authorization: Bearer $TOKEN"
 ```
@@ -199,7 +199,7 @@ This starts:
 - **Next.js Dashboard** (`safeops_frontend`) on port `3000`
 
 ### 2. Verify and Seed Database
-The containers will initialize the Postgres database and seed initial configurations automatically. To seed the 15 default tools on the Docker-hosted backend, obtain a token and send a request:
+The containers will initialize the Postgres database and seed initial configurations automatically. To seed the 16 default tools on the Docker-hosted backend, obtain a token and send a request:
 ```bash
 # Log in to get JWT token
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
@@ -237,7 +237,7 @@ Add to your MCP configuration (e.g. `~/.config/claude/claude_code_config.json`):
 }
 ```
 
-Once configured, the AI agent can use all 15 SafeOps tools:
+Once configured, the AI agent can use all 16 SafeOps tools:
 
 | Tool | Category | Risk | Description |
 |------|----------|------|-------------|
@@ -256,6 +256,7 @@ Once configured, the AI agent can use all 15 SafeOps tools:
 | `service_status` | services | 1.0 | Service status details |
 | `traverse_documentation` | setup | 2.0 | Safely fetch & parse online docs |
 | `simulate_install` | setup | 4.0 | Dry-run install commands in sandbox |
+| `lookup_package_doc` | setup | 2.0 | Search online setup documentation for a package |
 
 ---
 

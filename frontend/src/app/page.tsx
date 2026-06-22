@@ -11,7 +11,7 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "2. Define Security Policies",
-    description: "Go to the 'Policies Editor'. Register rules specifying which system actions (like update_package or restart_service) are allowed automatically, blocked (denied), or require approval.",
+    description: "Go to the 'Policies Editor'. Register rules specifying which system actions (like update_package, restart_service, or lookup_package_doc) are allowed automatically, blocked (denied), or require approval.",
     tip: "E.g., Allow updates on staging, but require approval on production."
   },
   {
