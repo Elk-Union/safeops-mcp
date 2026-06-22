@@ -64,7 +64,73 @@ AI coding agents (e.g., Claude Code, Cursor, Windsurf, Antigravity) are designed
 
 ---
 
-## 2. Threat Modeling & Security Objectives (STRIDE Analysis)
+## 2. Safe Application Setup & Configuration Pipeline
+
+A primary goal of SAFEOPS MCP is enabling AI agents to safely install, configure, and update application environments (e.g., Neovim + NvChad, Emacs, plugins, shell configurations) on behalf of users without jeopardizing host OS integrity.
+
+Traditional agents read online documentation and run commands blindly (e.g., `curl -fsSL https://... | sh`). SAFEOPS MCP implements a structured, secure setup pipeline:
+
+```text
+  [AI Agent requests Setup]
+              |
+              v
+  [1. Secure Documentation Traversal]  <-- Traverses guide URL (markdown sandbox)
+              |
+              v
+  [2. Command Extraction & Sanitization] <-- Parses commands; blocks direct pipes to shell
+              |
+              v
+  [3. Pre-Action Config Backup]         <-- Checkpoints target folders (~/.config/nvim, etc.)
+              |
+              v
+  [4. Sandboxed Dry-Run Simulation]     <-- Runs setup script in isolated container
+              |
+     Is Dry-Run Successful?
+       /              \
+     Yes              No
+     /                  \
+    v                    v
+[5. Host Execution]   [Abort & Report Sandbox Errors]
+    |
+Validate Host State
+    |
+  Success?
+   /    \
+ Yes    No
+ /        \
+v          v
+[Save]  [6. Auto-Rollback to Config Backup]
+```
+
+### 2.1 Secure Documentation Traversal
+To retrieve setup guides, the agent is restricted from using standard raw browsers or curl. Instead, it calls the `traverse_documentation(url)` tool, which:
+1. Fetches the page on the backend server.
+2. Strips all active JavaScript, frames, and tracking elements.
+3. Converts the documentation to a sanitized Markdown document.
+4. Returns the pure text representation to the agent, shielding the client environment from web-based exploits.
+
+### 2.2 Script Sanitization Engine
+When an installation script is found (such as `curl | sh`), the proxy intercepts it. The system:
+- Downloads the target script locally to the safety layer.
+- Performs static analysis (e.g., checking for root escalations, network calls, writing to system paths outside user home).
+- Replaces absolute host references with relative sandboxed paths.
+
+### 2.3 Pre-Action Configuration Checkpoints
+Before modifying any configuration files on the host, the rollback engine automatically takes backups of key application directories.
+- For **Neovim** setup: Backs up `~/.config/nvim`, `~/.local/share/nvim`, `~/.cache/nvim`.
+- For **Emacs** setup: Backs up `~/.emacs.d`, `~/.emacs`.
+- Backups are stored as compressed tarballs in a local recovery directory (`~/.safeops/backups/`).
+
+### 2.4 Sandboxed Dry-Run Simulation
+Before running the commands on the user's host shell, the setup pipeline spins up a transient Docker container matching the user's system OS (e.g. Ubuntu, Arch). 
+- An ephemeral overlay of the user's home directory (without write-back access) is mounted inside the container.
+- The installation commands are executed inside the container.
+- The system verifies if the container exit codes are `0` and inspects the changes made to the overlay home directory (e.g. verifying `nvim --headless +qa` runs without errors).
+- If the simulation succeeds, the command is cleared for host execution. If it fails, the agent is notified of the errors, protecting the host system from broken configurations.
+
+---
+
+## 3. Threat Modeling & Security Objectives (STRIDE Analysis)
 
 To design the governance controls of SAFEOPS MCP, we apply a STRIDE threat modeling framework to AI agent execution:
 
@@ -79,11 +145,11 @@ To design the governance controls of SAFEOPS MCP, we apply a STRIDE threat model
 
 ---
 
-## 3. Protocol Channels & Handshaking (JSON-RPC Specification)
+## 4. Protocol Channels & Handshaking (JSON-RPC Specification)
 
 The Model Context Protocol (MCP) relies on JSON-RPC 2.0 messages sent over standard input/output (`stdio`) or Server-Sent Events (`SSE`). Below are the explicit specifications for message handshaking, tool listing, and tool calling.
 
-### 3.1 Connection Handshake
+### 4.1 Connection Handshake
 
 When an AI client (e.g. Claude Code) launches the SAFEOPS MCP server, it starts a handshake exchange:
 
@@ -138,7 +204,7 @@ When an AI client (e.g. Claude Code) launches the SAFEOPS MCP server, it starts 
 
 ---
 
-### 3.2 Dynamic Tool Discovery
+### 4.2 Dynamic Tool Discovery
 
 Once initialized, the client queries for available tools:
 
@@ -181,6 +247,39 @@ The MCP server acts as a proxy, forwarding this request to the backend `/api/v1/
           },
           "required": ["service_name"]
         }
+      },
+      {
+        "name": "traverse_documentation",
+        "description": "Safely fetches and parses online application setup documentation, converting it to markdown text.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The documentation URL to read."
+            }
+          },
+          "required": ["url"]
+        }
+      },
+      {
+        "name": "simulate_install",
+        "description": "Dry-runs application installation commands inside an isolated Docker sandbox matching the host OS to check for compatibility and errors.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "commands": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "The list of install commands to simulate."
+            },
+            "os_environment": {
+              "type": "string",
+              "description": "Target container image (e.g. ubuntu, alpine)."
+            }
+          },
+          "required": ["commands"]
+        }
       }
     ]
   }
@@ -189,7 +288,7 @@ The MCP server acts as a proxy, forwarding this request to the backend `/api/v1/
 
 ---
 
-### 3.3 Dynamic Tool Execution and Asynchronous Approvals
+### 4.3 Dynamic Tool Execution and Asynchronous Approvals
 
 When the agent invokes a tool, the server relays the request to the `/api/v1/executions` endpoint.
 
@@ -248,11 +347,11 @@ If the command requires approval, the server returns a suspended, informative st
 
 ---
 
-## 4. Integration Specifications for Major AI Agent Clients
+## 5. Integration Specifications for Major AI Agent Clients
 
 To ensure seamless integration with various developer environments, SAFEOPS MCP supports standard configuration templates for the major AI clients.
 
-### 4.1 Claude Code Integration
+### 5.1 Claude Code Integration
 Claude Code connects to MCP servers via standard configuration files. Add SAFEOPS MCP by configuring your global settings:
 
 **File Path**: `~/.config/claude/config.json`
@@ -273,7 +372,7 @@ Claude Code connects to MCP servers via standard configuration files. Add SAFEOP
 
 ---
 
-### 4.2 Cursor Desktop Integration
+### 5.2 Cursor Desktop Integration
 Cursor supports MCP servers configured through its Desktop UI.
 
 1. Navigate to **Cursor Settings** -> **Features** -> **MCP**.
@@ -288,7 +387,7 @@ Cursor supports MCP servers configured through its Desktop UI.
 
 ---
 
-### 4.3 Windsurf Integration
+### 5.3 Windsurf Integration
 Windsurf manages external tool registries via codeium configurations.
 
 **File Path**: `~/.codeium/windsurf/mcp_config.json`
@@ -309,7 +408,7 @@ Windsurf manages external tool registries via codeium configurations.
 
 ---
 
-### 4.4 Antigravity Integration
+### 5.4 Antigravity Integration
 Antigravity integrates with custom MCP servers registered in its global config directory.
 
 **File Path**: `/home/aderham/.gemini/antigravity/mcp_config.json`
@@ -330,7 +429,7 @@ Antigravity integrates with custom MCP servers registered in its global config d
 
 ---
 
-## 5. Advanced Policy Engine & ABAC Resolver
+## 6. Advanced Policy Engine & ABAC Resolver
 
 The Policy Engine handles the core authorization logic. It supports Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC). Below is the Python representation of the policy engine evaluator:
 
@@ -399,11 +498,11 @@ class PolicyResolver:
 
 ---
 
-## 6. Dynamic Risk Engine Specifications
+## 7. Dynamic Risk Engine Specifications
 
 The Risk Engine calculates a dynamic, decimal score ranging from `0.0` to `10.0` to represent the severity/risk of executing the tool under the current system context.
 
-### 6.1 Risk Formulation
+### 7.1 Risk Formulation
 
 The dynamic score is computed using the following equation:
 
@@ -425,7 +524,7 @@ Where:
 
 ---
 
-### 6.2 Worked Scoring Scenarios
+### 7.2 Worked Scoring Scenarios
 
 To demonstrate the risk engine calculations, review the following scenarios:
 
@@ -455,11 +554,11 @@ To demonstrate the risk engine calculations, review the following scenarios:
 
 ---
 
-## 7. Execution Sandbox & Isolation Architecture
+## 8. Execution Sandbox & Isolation Architecture
 
 The execution of any system tool must be fully insulated. The Docker sandbox utilizes the official Docker SDK for Python, enforcing the following security constraints:
 
-### 7.1 Container Security Configuration
+### 8.1 Container Security Configuration
 - **Network Mode**: Set to `"none"` to prevent the agent from communicating with external servers, preventing command-and-control (C2) callbacks or exfiltration.
 - **Resource Limits**: Configured with `mem_limit="512m"` and `nano_cpus=500000000` (capped at 0.5 vCPU).
 - **User Namespace**: Spawns using non-root user credentials (`1000:1000`).
@@ -467,7 +566,7 @@ The execution of any system tool must be fully insulated. The Docker sandbox uti
 
 ---
 
-### 7.2 Alternative `systemd-run` Execution Model
+### 8.2 Alternative `systemd-run` Execution Model
 For situations where host-level interactions are required (e.g. managing systemd services), SAFEOPS MCP uses `systemd-run` to execute commands inside transient systemd service units with resource boundaries:
 
 ```bash
@@ -476,11 +575,11 @@ systemd-run --scope -p MemoryMax=512M -p CPUQuota=50% --uid=1000 --gid=1000 /bin
 
 ---
 
-## 8. State Recovery and Rollback Engine
+## 9. State Recovery and Rollback Engine
 
 SAFEOPS MCP establishes state snapshots before executing high-risk write tasks.
 
-### 8.1 Snapshots Registry Table
+### 9.1 Snapshots Registry Table
 Rollback tasks are recorded in the database, containing:
 - `id`: Unique snapshot UUID.
 - `execution_id`: The ID of the tool execution that triggered the snapshot.
@@ -489,7 +588,7 @@ Rollback tasks are recorded in the database, containing:
 
 ---
 
-### 8.2 Application Deployment Rollbacks
+### 9.2 Application Deployment Rollbacks
 During `deploy_fastapi` operations, the rollback framework handles updates using symlink version mapping:
 1. The new deployment build is compiled inside `/var/www/releases/release_uuid`.
 2. A database checkpoint is created.
@@ -499,7 +598,7 @@ During `deploy_fastapi` operations, the rollback framework handles updates using
 
 ---
 
-## 9. Cryptographic Audit Ledger
+## 10. Cryptographic Audit Ledger
 
 To prevent administrative tampering, audit records form an immutable hash chain:
 
@@ -548,7 +647,7 @@ def verify_audit_ledger(db: Session) -> bool:
 
 ---
 
-## 10. Database Schema (SQLAlchemy Models)
+## 11. Database Schema (SQLAlchemy Models)
 
 The following schema defines the core entity structure for the PostgreSQL database:
 
@@ -689,69 +788,3 @@ class RollbackSnapshot(Base):
     rolled_back_at = Column(DateTime, nullable=True)
     
     execution = relationship("ToolExecution", back_populates="rollback")
-```
-
----
-
-## 11. API Endpoint Specifications (FastAPI)
-
-All endpoints reside under `/api/v1` and require authentication.
-
-### Endpoint Catalog
-
-- **`POST /api/v1/auth/login`**
-  - **Description**: Authenticate dashboard users. Returns JWT access token.
-  - **Payload**: `{ "email": "...", "password": "..." }`
-  - **Response**: `{ "access_token": "...", "token_type": "bearer" }`
-
-- **`GET /api/v1/tools`**
-  - **Description**: Get all registered tools for the authenticated client.
-  - **Response**: List of tool schemas.
-
-- **`POST /api/v1/executions`**
-  - **Description**: Trigger tool execution. Evaluates policies and risk.
-  - **Payload**:
-    ```json
-    {
-      "tool_name": "restart_service",
-      "arguments": { "service_name": "nginx" },
-      "environment": "production"
-    }
-    ```
-  - **Responses**:
-    - **`200 OK` (Auto-executed)**: Returns command output execution.
-    - **`202 Accepted` (Approval Required)**: Returns `{ "status": "PENDING_APPROVAL", "approval_id": "UUID", "approval_url": "https://..." }`.
-    - **`403 Forbidden`**: Blocked by policy.
-
-- **`GET /api/v1/approvals`**
-  - **Description**: Lists pending and resolved approvals. Filterable by status.
-
-- **`POST /api/v1/approvals/{approval_id}/decide`**
-  - **Description**: Approve or reject a request.
-  - **Payload**: `{ "decision": "APPROVED" | "REJECTED", "reason": "Reason for decision" }`
-
-- **`GET /api/v1/audit`**
-  - **Description**: Query cryptographic audit trail logs. Supports CSV exports.
-
-- **`POST /api/v1/clients`**
-  - **Description**: Registers a new MCP client. Returns API key.
-
----
-
-## 12. Production Deployment & Telemetry
-
-### Infrastructure Stack (Docker Compose)
-We orchestrate our dev/prod infrastructure via `docker-compose.yml` to bundle:
-1. **API Backend**: FastAPI application container.
-2. **Web Dashboard**: Next.js compiled frontend container.
-3. **Database**: PostgreSQL database container.
-4. **Caching & Queue**: Redis container.
-5. **Observability**: Prometheus, Grafana, and OpenTelemetry collector to monitor service latencies, execution counts, risk warnings, and engine failures.
-
-### Production Hardening Checklist
-- [ ] Enforce strict TLS 1.3 on all endpoint routers.
-- [ ] Implement Redis rate limiting to prevent denial of service (DoS) attacks on endpoints.
-- [ ] Mount Docker sockets `/var/run/docker.sock` to the backend *only* under a restricted group scope.
-- [ ] Verify that the database executes daily backups and matches encryption-at-rest.
-- [ ] Set `SAFEOPS_API_TOKEN` keys to high-entropy randomly generated values.
-- [ ] Configure alert-manager hooks to notify SREs immediately if the audit log SHA256 chain breaks.
