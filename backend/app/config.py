@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Database Settings
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql://safeops_user:safeops_password@db:5432/safeops_db"
+        "sqlite:///./safeops.db"
     )
     
     # Redis Settings
