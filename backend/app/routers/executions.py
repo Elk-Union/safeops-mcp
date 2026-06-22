@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Security, Request, Response, status
 from sqlalchemy.orm import Session
 import datetime
 import urllib.request
@@ -100,6 +100,7 @@ def resolve_command_args(tool_name: str, arguments: Dict[str, Any]) -> List[str]
 def execute_tool(
     payload: ExecutionRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     client: ClientRegistry = Depends(get_current_client)
 ):
@@ -177,6 +178,7 @@ def execute_tool(
     db.commit()
 
     if requires_approval:
+        response.status_code = status.HTTP_202_ACCEPTED
         # Create approval request
         approval = ApprovalRequest(
             execution_id=execution.id,
@@ -203,6 +205,7 @@ def execute_tool(
             arguments=arguments,
             environment=environment,
             status="PENDING_APPROVAL",
+            created_at=execution.created_at,
             risk_score=risk_score,
             risk_explanation=risk_explanation,
             approval_url=approval_url
