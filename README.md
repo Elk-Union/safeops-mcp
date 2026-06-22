@@ -1,4 +1,4 @@
-# 🛡️ SAFEOPS MCP — Secure AI Agent Governance Platform
+# SAFEOPS MCP — Secure AI Agent Governance Platform
 
 <div align="center">
 
@@ -14,7 +14,7 @@
 
 ---
 
-## 🎯 What is SafeOps MCP?
+## What is SafeOps MCP?
 
 SafeOps MCP prevents AI agents (Claude Code, Cursor, Windsurf, Antigravity, etc.) from executing destructive commands directly on host systems. Instead of raw terminal access, every agent action passes through a multi-layered safety pipeline:
 
@@ -26,17 +26,17 @@ AI Agent → MCP Server → Safety Classifier → Risk Engine → Policy Engine 
 
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Dynamic Risk Scoring** | Every command is scored 0–10 based on tool type, environment, and arguments |
-| 🛡️ **Context-Aware Policies** | RBAC + ABAC rules per role/tool/environment combination |
-| ⏸️ **Multi-Stage Approvals** | High-risk actions pause and require human authorization via dashboard |
-| 📦 **Sandboxed Execution** | Commands run in isolated environments (`systemd-run` locally or Docker containers) |
-| ⏪ **Automatic Rollbacks** | Pre-execution snapshots with auto-restore on failure |
-| 🔗 **Cryptographic Audit Trail** | SHA-256 hash-chained immutable logs for tamper-proof auditing |
-| 📖 **Safe Doc Traversal** | Securely fetches and parses online documentation for AI agents to read |
+| **Dynamic Risk Scoring** | Every command is scored 0–10 based on tool type, environment, and arguments |
+| **Context-Aware Policies** | RBAC + ABAC rules per role/tool/environment combination |
+| **Multi-Stage Approvals** | High-risk actions pause and require human authorization via dashboard |
+| **Sandboxed Execution** | Commands run in isolated environments (`systemd-run` locally or Docker containers) |
+| **Automatic Rollbacks** | Pre-execution snapshots with auto-restore on failure |
+| **Cryptographic Audit Trail** | SHA-256 hash-chained immutable logs for tamper-proof auditing |
+| **Safe Doc Traversal** | Securely fetches and parses online documentation for AI agents to read |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 safeops-mcp/
@@ -83,7 +83,7 @@ safeops-mcp/
 
 ---
 
-## 🚀 Quick Start (Local — No Docker Required)
+## Quick Start (Local — No Docker Required)
 
 ### Prerequisites
 
@@ -179,7 +179,7 @@ pip install mcp requests
 
 ---
 
-## 🔌 Connecting AI Agents
+## Connecting AI Agents
 
 ### Claude Code / Antigravity / Any MCP Client
 
@@ -222,7 +222,7 @@ Once configured, the AI agent can use all 15 SafeOps tools:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌──────────────────┐     stdio/SSE      ┌──────────────────┐
@@ -274,7 +274,7 @@ Once configured, the AI agent can use all 15 SafeOps tools:
 
 ---
 
-## 🔧 API Documentation
+## API Documentation
 
 Interactive Swagger docs available at `http://localhost:8000/docs` when the backend is running.
 
@@ -302,7 +302,7 @@ Interactive Swagger docs available at `http://localhost:8000/docs` when the back
 
 ---
 
-## 🖥️ Dashboard
+## Dashboard
 
 The cybersecurity-themed Next.js dashboard provides:
 
@@ -316,7 +316,7 @@ The cybersecurity-themed Next.js dashboard provides:
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Environment variables (set in shell or `.env`):
 
@@ -332,23 +332,23 @@ Environment variables (set in shell or `.env`):
 
 ---
 
-## 📝 Default Credentials
+## Default Credentials
 
 | Resource | Value |
 |----------|-------|
 | Admin Email | `admin@safeops.io` |
 | Admin Password | `safeops-admin` |
 
-> ⚠️ **Change these immediately in production!**
+>  **Change these immediately in production!**
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, branching strategy, and code standards.
 
 ---
 
-## 📄 License
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
