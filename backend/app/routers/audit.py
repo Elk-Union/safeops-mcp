@@ -5,7 +5,6 @@ from ..database import get_db
 from ..schemas import AuditLogResponse
 from ..models import AuditLog, User
 from ..core.auth_utils import get_current_user
-from ..core.policy import PolicyResolver # Used if we want to check network context or verify hashes
 
 router = APIRouter(prefix="/audit", tags=["Audit Log"])
 
@@ -60,8 +59,6 @@ def trigger_ledger_verification(
 ):
     """
     Validates if the historical SHA256 chain has been broken or tampered with.
-    """
-    from docs.architecture_kb import verify_audit_ledger
     # Wait, we wrote the verification function inside app.core.audit_utils. Let's load that!
     from ..core.audit_utils import AuditLedger
     
