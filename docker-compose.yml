@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  # Database engine
+  db:
+    image: postgres:15-alpine
+    container_name: safeops_db
+    restart: always
+    environment:
+      POSTGRES_USER: safeops_user
+      POSTGRES_PASSWORD: safeops_password
+      POSTGRES_DB: safeops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Caching and session store
+  redis:
+    image: redis:7-alpine
+    container_name: safeops_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # FastAPI API Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: safeops_backend
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://safeops_user:safeops_password@db:5432/safeops_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=super-secret-safeops-token-key-change-in-production-1234567890
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      # Mount host Docker socket to allow running sandbox containers from within the API container
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - db
+      - redis
+
+  # Next.js Onboarding Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: safeops_frontend
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
