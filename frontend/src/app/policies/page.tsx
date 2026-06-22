@@ -1,39 +1,152 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-// Mock policies mapping client roles to tool executions
-const INITIAL_POLICIES = [
-  { id: "pol_1", role: "operator", tool: "restart_service", environment: "staging", effect: "ALLOW", restrictions: "Only service: nginx" },
-  { id: "pol_2", role: "operator", tool: "restart_service", environment: "production", effect: "APPROVAL_REQUIRED", restrictions: "Requires manager review" },
-  { id: "pol_3", role: "developer", tool: "update_package", environment: "staging", effect: "ALLOW", restrictions: "None" },
-  { id: "pol_4", role: "developer", tool: "update_package", environment: "production", effect: "APPROVAL_REQUIRED", restrictions: "Requires admin signoff" },
-  { id: "pol_5", role: "reader", tool: "*", environment: "*", effect: "DENY", restrictions: "No execution permitted" },
-  { id: "pol_6", role: "operator", tool: "restore_database", environment: "production", effect: "APPROVAL_REQUIRED", restrictions: "Requires admin review" }
-];
+const ROLE_MAP: { [key: string]: string } = {
+  "277df547-7066-4ca5-ab8f-35dccf9a7673": "superadmin",
+  "660f44b2-4cfb-44a0-a406-1f72cf8cad60": "admin",
+  "6e2489e8-4572-49c2-a4bc-6da507a1d0ec": "operator",
+  "85d8e5c1-6041-4e1c-9a9b-4ac945d49082": "reader",
+};
 
 export default function PoliciesPage() {
-  const [policies, setPolicies] = useState(INITIAL_POLICIES);
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [newPolicy, setNewPolicy] = useState({
-    role: "operator",
-    tool: "restart_service",
+    role_id: "6e2489e8-4572-49c2-a4bc-6da507a1d0ec", // operator default
+    tool_id: "",
     environment: "*",
-    effect: "ALLOW",
+    effect: "allow",
     restrictions: ""
   });
 
-  const handleAddPolicy = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = `pol_${policies.length + 1}`;
-    setPolicies([...policies, { id, ...newPolicy }]);
-    setShowAddForm(false);
-    setNewPolicy({ role: "operator", tool: "restart_service", environment: "*", effect: "ALLOW", restrictions: "" });
+  useEffect(() => {
+    fetchPoliciesAndTools();
+  }, []);
+
+  const fetchPoliciesAndTools = async () => {
+    setLoading(true);
+    setError(null);
+    const token = localStorage.getItem("safeops_token");
+    if (!token) return;
+
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Fetch Tools
+      const toolsRes = await fetch("http://localhost:8000/api/v1/tools/", { headers });
+      if (toolsRes.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const toolsData = await toolsRes.json().catch(() => []);
+      if (Array.isArray(toolsData)) {
+        setTools(toolsData);
+        if (toolsData.length > 0) {
+          setNewPolicy((prev) => ({ ...prev, tool_id: toolsData[0].id }));
+        }
+      }
+
+      // Fetch Policies
+      const policiesRes = await fetch("http://localhost:8000/api/v1/policies/", { headers });
+      const policiesData = await policiesRes.json().catch(() => []);
+      if (Array.isArray(policiesData)) {
+        setPolicies(policiesData);
+      }
+    } catch (err: any) {
+      setError("Could not retrieve governance policies list");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeletePolicy = (id: string) => {
-    setPolicies(policies.filter((p) => p.id !== id));
+  const handleUnauthorized = () => {
+    localStorage.removeItem("safeops_token");
+    window.location.reload();
+  };
+
+  const handleAddPolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const token = localStorage.getItem("safeops_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/policies/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          role_id: newPolicy.role_id,
+          tool_id: newPolicy.tool_id,
+          environment: newPolicy.environment,
+          effect: newPolicy.effect,
+          rules_json: newPolicy.restrictions ? { restrictions: newPolicy.restrictions } : null,
+        }),
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to create policy rule");
+      }
+
+      // Refresh list
+      await fetchPoliciesAndTools();
+      setShowAddForm(false);
+      setNewPolicy((prev) => ({
+        ...prev,
+        environment: "*",
+        effect: "allow",
+        restrictions: ""
+      }));
+    } catch (err: any) {
+      setError(err.message || "Could not register access policy rule");
+    }
+  };
+
+  const handleDeletePolicy = async (id: string) => {
+    setError(null);
+    const token = localStorage.getItem("safeops_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/policies/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to delete policy rule");
+      }
+
+      // Refresh list
+      await fetchPoliciesAndTools();
+    } catch (err: any) {
+      setError(err.message || "Error revoking policy rule");
+    }
+  };
+
+  const getToolName = (toolId: string) => {
+    const tool = tools.find((t) => t.id === toolId);
+    return tool ? `${tool.name}()` : `ID: ${toolId}`;
   };
 
   return (
@@ -41,148 +154,157 @@ export default function PoliciesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Policies Configuration (RBAC & ABAC)</h2>
-          <p className="text-zinc-400 text-sm mt-1">Configure role capabilities, environment overlays, and validation conditions governing tools.</p>
+          <h2 className="text-xl font-bold tracking-tight text-slate-800">Policies Configuration (RBAC & ABAC)</h2>
+          <p className="text-slate-500 text-xs mt-1">Configure role capabilities, environment overlays, and validation conditions governing tools.</p>
         </div>
 
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-cyber-cyan hover:bg-cyber-cyan/90 text-zinc-950 font-bold rounded-lg text-xs transition"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs shadow-sm transition"
         >
           {showAddForm ? "Cancel" : "Add Policy Rule"}
         </button>
       </div>
 
+      {error && (
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+          {error}
+        </div>
+      )}
+
       {/* Add Policy Form */}
       {showAddForm && (
-        <form onSubmit={handleAddPolicy} className="bg-cyber-card border border-cyber-border rounded-xl p-6 flex flex-col gap-4 max-w-2xl">
-          <h3 className="font-mono text-sm font-semibold text-white">// CREATE POLICY RULE</h3>
+        <form onSubmit={handleAddPolicy} className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-5 max-w-2xl shadow-sm">
+          <h3 className="font-mono text-[10px] tracking-wider font-bold text-slate-400 uppercase">Create Policy Rule</h3>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 text-xs font-mono text-zinc-400">
-              ROLE:
+            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+              Role Scope
               <select
-                value={newPolicy.role}
-                onChange={(e) => setNewPolicy({ ...newPolicy, role: e.target.value })}
-                className="bg-[#0b0b0d] border border-cyber-border rounded-lg p-2.5 text-xs text-white focus:outline-none"
+                value={newPolicy.role_id}
+                onChange={(e) => setNewPolicy({ ...newPolicy, role_id: e.target.value })}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
               >
-                <option value="superadmin">superadmin</option>
-                <option value="admin">admin</option>
-                <option value="operator">operator</option>
-                <option value="developer">developer</option>
-                <option value="reader">reader</option>
+                {Object.entries(ROLE_MAP).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
               </select>
             </div>
             
-            <div className="flex flex-col gap-1.5 text-xs font-mono text-zinc-400">
-              TOOL TARGET:
+            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+              Governed Tool Target
               <select
-                value={newPolicy.tool}
-                onChange={(e) => setNewPolicy({ ...newPolicy, tool: e.target.value })}
-                className="bg-[#0b0b0d] border border-cyber-border rounded-lg p-2.5 text-xs text-white focus:outline-none"
+                value={newPolicy.tool_id}
+                onChange={(e) => setNewPolicy({ ...newPolicy, tool_id: e.target.value })}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                required
               >
-                <option value="restart_service">restart_service()</option>
-                <option value="update_package">update_package()</option>
-                <option value="remove_package">remove_package()</option>
-                <option value="deploy_fastapi">deploy_fastapi()</option>
-                <option value="restore_database">restore_database()</option>
-                <option value="simulate_install">simulate_install()</option>
-                <option value="*">* (Wildcard)</option>
+                {tools.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}()</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 text-xs font-mono text-zinc-400">
-              ENVIRONMENT:
+            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+              Target Environment
               <select
                 value={newPolicy.environment}
                 onChange={(e) => setNewPolicy({ ...newPolicy, environment: e.target.value })}
-                className="bg-[#0b0b0d] border border-cyber-border rounded-lg p-2.5 text-xs text-white focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
               >
-                <option value="*">* (Any Environment)</option>
+                <option value="*">All Environments</option>
                 <option value="production">production</option>
                 <option value="staging">staging</option>
                 <option value="development">development</option>
               </select>
             </div>
             
-            <div className="flex flex-col gap-1.5 text-xs font-mono text-zinc-400">
-              EFFECT RULE:
+            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+              Access Governance Effect
               <select
                 value={newPolicy.effect}
                 onChange={(e) => setNewPolicy({ ...newPolicy, effect: e.target.value })}
-                className="bg-[#0b0b0d] border border-cyber-border rounded-lg p-2.5 text-xs text-white focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
               >
-                <option value="ALLOW">ALLOW</option>
-                <option value="DENY">DENY</option>
-                <option value="APPROVAL_REQUIRED">APPROVAL_REQUIRED</option>
+                <option value="allow">ALLOW</option>
+                <option value="deny">DENY</option>
+                <option value="approval_required">APPROVAL REQUIRED</option>
               </select>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 text-xs font-mono text-zinc-400">
-            ARGUMENTS RESTRICTIONS / COMMENTS:
+          <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+            Arguments Restrictions / Comments
             <input
               type="text"
               placeholder="e.g. Only service: nginx, or requires manager review"
               value={newPolicy.restrictions}
               onChange={(e) => setNewPolicy({ ...newPolicy, restrictions: e.target.value })}
-              className="bg-[#0b0b0d] border border-cyber-border rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-cyber-cyan"
+              className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
             />
           </div>
 
-          <button type="submit" className="py-2.5 bg-cyber-cyan text-zinc-950 font-bold text-xs rounded-lg transition mt-2">
+          <button type="submit" className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition mt-2">
             Confirm Rule Addition
           </button>
         </form>
       )}
 
       {/* Rules list */}
-      <div className="bg-cyber-card border border-cyber-border rounded-xl overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-cyber-border bg-[#18181b]/30 text-zinc-400 text-xs font-mono">
-              <th className="py-3.5 px-6">Role Scope</th>
-              <th className="py-3.5 px-6">Governed Tool</th>
-              <th className="py-3.5 px-6">Environment</th>
-              <th className="py-3.5 px-6">Governance Effect</th>
-              <th className="py-3.5 px-6">Validation Conditions</th>
-              <th className="py-3.5 px-6 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm divide-y divide-cyber-border">
-            {policies.map((pol) => (
-              <tr key={pol.id} className="hover:bg-[#18181b]/10 transition font-mono text-xs">
-                <td className="py-4 px-6 text-white font-sans font-semibold">{pol.role}</td>
-                <td className="py-4 px-6">
-                  <code className="text-cyber-cyan font-bold bg-cyber-cyan/5 px-2 py-0.5 rounded border border-cyber-cyan/15">
-                    {pol.tool}
-                  </code>
-                </td>
-                <td className="py-4 px-6 uppercase text-zinc-400">{pol.environment}</td>
-                <td className="py-4 px-6 font-bold">
-                  <span className={
-                    pol.effect === "ALLOW" ? "text-cyber-emerald" :
-                    pol.effect === "APPROVAL_REQUIRED" ? "text-cyber-amber" :
-                    "text-cyber-rose"
-                  }>
-                    {pol.effect}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-zinc-400 font-sans">{pol.restrictions}</td>
-                <td className="py-4 px-6 text-right">
-                  <button
-                    onClick={() => handleDeletePolicy(pol.id)}
-                    className="text-cyber-rose hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-slate-400 text-xs">Loading registered policies...</div>
+        ) : policies.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 text-xs">No governance policies registered. Sandbox runs will fail (Zero Trust Default).</div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 text-xs font-mono">
+                <th className="py-3.5 px-6">Role Scope</th>
+                <th className="py-3.5 px-6">Governed Tool</th>
+                <th className="py-3.5 px-6">Environment</th>
+                <th className="py-3.5 px-6">Governance Effect</th>
+                <th className="py-3.5 px-6">Validation Conditions</th>
+                <th className="py-3.5 px-6 text-right">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="text-xs divide-y divide-slate-100">
+              {policies.map((pol) => (
+                <tr key={pol.id} className="hover:bg-slate-50/40 transition">
+                  <td className="py-4 px-6 text-slate-800 font-bold font-sans">
+                    {ROLE_MAP[pol.role_id] || pol.role_id}
+                  </td>
+                  <td className="py-4 px-6">
+                    <code className="text-indigo-600 font-bold bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded font-mono">
+                      {getToolName(pol.tool_id)}
+                    </code>
+                  </td>
+                  <td className="py-4 px-6 uppercase font-bold text-slate-500 font-mono text-[10px]">{pol.environment}</td>
+                  <td className="py-4 px-6 font-bold font-mono">
+                    <span className={
+                      pol.effect === "allow" ? "text-emerald-600" :
+                      pol.effect === "approval_required" ? "text-amber-600" :
+                      "text-rose-600"
+                    }>
+                      {pol.effect.toUpperCase().replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 text-slate-500 font-sans">{pol.rules_json?.restrictions || "None"}</td>
+                  <td className="py-4 px-6 text-right">
+                    <button
+                      onClick={() => handleDeletePolicy(pol.id)}
+                      className="text-rose-600 hover:text-rose-700 font-semibold hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
