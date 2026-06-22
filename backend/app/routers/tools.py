@@ -62,7 +62,8 @@ def seed_default_tools(
         
         # Setup Pipeline tools
         {"name": "traverse_documentation", "category": "setup", "description": "Safely fetches and parses online application setup documentation, converting it to markdown text.", "base_risk": 2.0, "requires_approval_above": 5.0, "rollback_available": False},
-        {"name": "simulate_install", "category": "setup", "description": "Dry-runs application installation commands inside an isolated Docker sandbox matching the host OS to check for compatibility and errors.", "base_risk": 4.0, "requires_approval_above": 5.0, "rollback_available": False}
+        {"name": "simulate_install", "category": "setup", "description": "Dry-runs application installation commands inside an isolated Docker sandbox matching the host OS to check for compatibility and errors.", "base_risk": 4.0, "requires_approval_above": 5.0, "rollback_available": False},
+        {"name": "lookup_package_doc", "category": "setup", "description": "Searches online for installation and configuration documentation of a specific package (e.g. PyPI, npm, GitHub) and returns the parsed markdown setup instructions.", "base_risk": 2.0, "requires_approval_above": 5.0, "rollback_available": False}
     ]
     
     db_tools = []

@@ -82,6 +82,17 @@ async def handle_list_tools() -> list[types.Tool]:
                 "description": "The URL of the documentation or guide page to parse."
             }
             required.append("url")
+        elif tool["name"] == "lookup_package_doc":
+            properties["package_name"] = {
+                "type": "string",
+                "description": "The name of the package to look up (e.g. 'jupytext', 'magma-nvim')."
+            }
+            required.append("package_name")
+            properties["platform"] = {
+                "type": "string",
+                "enum": ["github", "pypi", "npm", "generic"],
+                "description": "The platform/registry to search (default: generic)."
+            }
         elif tool["name"] == "simulate_install":
             properties["commands"] = {
                 "type": "array",

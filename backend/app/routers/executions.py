@@ -232,10 +232,72 @@ def run_sandbox_execution(
     tool_name = tool.name
     
     # Check if this is a Documentation Read request (processed outside Docker sandbox)
-    if tool_name == "traverse_documentation":
-        url = arguments.get("url")
-        if not url:
-            raise HTTPException(status_code=400, detail="Missing 'url' parameter")
+    if tool_name in ["traverse_documentation", "lookup_package_doc"]:
+        if tool_name == "traverse_documentation":
+            url = arguments.get("url")
+            if not url:
+                raise HTTPException(status_code=400, detail="Missing 'url' parameter")
+        else:
+            package_name = arguments.get("package_name")
+            if not package_name:
+                raise HTTPException(status_code=400, detail="Missing 'package_name' parameter")
+            platform = arguments.get("platform", "generic").lower()
+            
+            # Resolve url based on platform
+            if platform == "pypi":
+                import json
+                try:
+                    req = urllib.request.Request(
+                        f"https://pypi.org/pypi/{package_name}/json",
+                        headers={'User-Agent': 'Mozilla/5.0 (SafeOps Documentation Reader)'}
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        data = json.loads(response.read().decode('utf-8', errors='ignore'))
+                        content = data.get("info", {}).get("description", "No description found.")
+                    execution.status = "COMPLETED"
+                    execution.stdout = content
+                    execution.completed_at = datetime.datetime.utcnow()
+                    execution.exit_code = 0
+                    db.commit()
+                    
+                    AuditLedger.write_log(
+                        db=db,
+                        client_id=client.id,
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        risk_score=risk_score,
+                        status="COMPLETED",
+                        approved_by=approver_id
+                    )
+                    
+                    return ExecutionResponse(
+                        id=execution.id,
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        environment=execution.environment,
+                        status=execution.status,
+                        exit_code=execution.exit_code,
+                        stdout=execution.stdout,
+                        stderr=execution.stderr,
+                        created_at=execution.created_at,
+                        completed_at=execution.completed_at,
+                        risk_score=risk_score,
+                        risk_explanation=execution.risk_assessment.explanation if execution.risk_assessment else None
+                    )
+                except Exception:
+                    url = f"https://pypi.org/project/{package_name}/"
+            elif platform == "npm":
+                url = f"https://www.npmjs.com/package/{package_name}"
+            elif platform == "github":
+                if "/" in package_name:
+                    url = f"https://github.com/{package_name}"
+                else:
+                    url = f"https://github.com/search?q={package_name}"
+            else:
+                if "/" in package_name:
+                    url = f"https://github.com/{package_name}"
+                else:
+                    url = f"https://pypi.org/project/{package_name}/"
         
         content = secure_fetch_markdown(url)
         execution.status = "COMPLETED"
