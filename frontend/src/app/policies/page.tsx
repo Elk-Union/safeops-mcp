@@ -17,7 +17,7 @@ export default function PoliciesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [newPolicy, setNewPolicy] = useState({
-    role_id: "6e2489e8-4572-49c2-a4bc-6da507a1d0ec", // operator default
+    role_id: "6e2489e8-4572-49c2-a4bc-6da507a1d0ec",
     tool_id: "",
     environment: "*",
     effect: "allow",
@@ -101,7 +101,6 @@ export default function PoliciesPage() {
         throw new Error(errData.detail || "Failed to create policy rule");
       }
 
-      // Refresh list
       await fetchPoliciesAndTools();
       setShowAddForm(false);
       setNewPolicy((prev) => ({
@@ -137,7 +136,6 @@ export default function PoliciesPage() {
         throw new Error("Failed to delete policy rule");
       }
 
-      // Refresh list
       await fetchPoliciesAndTools();
     } catch (err: any) {
       setError(err.message || "Error revoking policy rule");
@@ -146,44 +144,44 @@ export default function PoliciesPage() {
 
   const getToolName = (toolId: string) => {
     const tool = tools.find((t) => t.id === toolId);
-    return tool ? `${tool.name}()` : `ID: ${toolId}`;
+    return tool ? `${tool.name}` : `ID: ${toolId}`;
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-800">Policies Configuration (RBAC & ABAC)</h2>
-          <p className="text-slate-500 text-xs mt-1">Configure role capabilities, environment overlays, and validation conditions governing tools.</p>
+          <h2 className="text-lg font-bold tracking-tight text-slate-800">Policies Configuration</h2>
+          <p className="text-slate-500 text-xs mt-0.5">Configure role permissions, environments, and validation conditions.</p>
         </div>
 
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs shadow-sm transition"
+          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-sm transition animate-fade-in"
         >
           {showAddForm ? "Cancel" : "Add Policy Rule"}
         </button>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
           {error}
         </div>
       )}
 
       {/* Add Policy Form */}
       {showAddForm && (
-        <form onSubmit={handleAddPolicy} className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-5 max-w-2xl shadow-sm">
-          <h3 className="font-mono text-[10px] tracking-wider font-bold text-slate-400 uppercase">Create Policy Rule</h3>
+        <form onSubmit={handleAddPolicy} className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-3 max-w-xl shadow-sm">
+          <h3 className="font-mono text-[9px] tracking-wider font-bold text-slate-400 uppercase">Create Policy Rule</h3>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
               Role Scope
               <select
                 value={newPolicy.role_id}
                 onChange={(e) => setNewPolicy({ ...newPolicy, role_id: e.target.value })}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none"
               >
                 {Object.entries(ROLE_MAP).map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
@@ -191,12 +189,12 @@ export default function PoliciesPage() {
               </select>
             </div>
             
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
               Governed Tool Target
               <select
                 value={newPolicy.tool_id}
                 onChange={(e) => setNewPolicy({ ...newPolicy, tool_id: e.target.value })}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none"
                 required
               >
                 {tools.map((t) => (
@@ -206,13 +204,13 @@ export default function PoliciesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
-              Target Environment
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+              Environment
               <select
                 value={newPolicy.environment}
                 onChange={(e) => setNewPolicy({ ...newPolicy, environment: e.target.value })}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none"
               >
                 <option value="*">All Environments</option>
                 <option value="production">production</option>
@@ -221,12 +219,12 @@ export default function PoliciesPage() {
               </select>
             </div>
             
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
-              Access Governance Effect
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+              Governance Effect
               <select
                 value={newPolicy.effect}
                 onChange={(e) => setNewPolicy({ ...newPolicy, effect: e.target.value })}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none"
               >
                 <option value="allow">ALLOW</option>
                 <option value="deny">DENY</option>
@@ -235,54 +233,54 @@ export default function PoliciesPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
-            Arguments Restrictions / Comments
+          <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+            Restrictions / Comments
             <input
               type="text"
               placeholder="e.g. Only service: nginx, or requires manager review"
               value={newPolicy.restrictions}
               onChange={(e) => setNewPolicy({ ...newPolicy, restrictions: e.target.value })}
-              className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+              className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg p-2 text-xs text-slate-850 focus:outline-none focus:border-indigo-650 focus:bg-white transition"
             />
           </div>
 
-          <button type="submit" className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition mt-2">
+          <button type="submit" className="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition mt-2">
             Confirm Rule Addition
           </button>
         </form>
       )}
 
       {/* Rules list */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400 text-xs">Loading registered policies...</div>
+          <div className="p-6 text-center text-slate-400 text-xs">Loading registered policies...</div>
         ) : policies.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-xs">No governance policies registered. Sandbox runs will fail (Zero Trust Default).</div>
+          <div className="p-6 text-center text-slate-400 text-xs">No governance policies registered. Zero Trust enforced.</div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 text-xs font-mono">
-                <th className="py-3.5 px-6">Role Scope</th>
-                <th className="py-3.5 px-6">Governed Tool</th>
-                <th className="py-3.5 px-6">Environment</th>
-                <th className="py-3.5 px-6">Governance Effect</th>
-                <th className="py-3.5 px-6">Validation Conditions</th>
-                <th className="py-3.5 px-6 text-right">Action</th>
+              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 text-[10px] font-mono">
+                <th className="py-2.5 px-5">Role Scope</th>
+                <th className="py-2.5 px-5">Governed Tool</th>
+                <th className="py-2.5 px-5">Environment</th>
+                <th className="py-2.5 px-5">Effect</th>
+                <th className="py-2.5 px-5">Conditions</th>
+                <th className="py-2.5 px-5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-slate-100">
               {policies.map((pol) => (
-                <tr key={pol.id} className="hover:bg-slate-50/40 transition">
-                  <td className="py-4 px-6 text-slate-800 font-bold font-sans">
+                <tr key={pol.id} className="hover:bg-slate-50/20 transition">
+                  <td className="py-3 px-5 text-slate-800 font-bold">
                     {ROLE_MAP[pol.role_id] || pol.role_id}
                   </td>
-                  <td className="py-4 px-6">
-                    <code className="text-indigo-600 font-bold bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded font-mono">
+                  <td className="py-3 px-5">
+                    <code className="text-indigo-600 font-bold bg-indigo-50/50 border border-indigo-100/30 px-1.5 py-0.5 rounded font-mono text-[11px]">
                       {getToolName(pol.tool_id)}
                     </code>
                   </td>
-                  <td className="py-4 px-6 uppercase font-bold text-slate-500 font-mono text-[10px]">{pol.environment}</td>
-                  <td className="py-4 px-6 font-bold font-mono">
+                  <td className="py-3 px-5 uppercase font-bold text-slate-400 font-mono text-[9px]">{pol.environment}</td>
+                  <td className="py-3 px-5 font-bold font-mono text-[10px]">
                     <span className={
                       pol.effect === "allow" ? "text-emerald-600" :
                       pol.effect === "approval_required" ? "text-amber-600" :
@@ -291,11 +289,11 @@ export default function PoliciesPage() {
                       {pol.effect.toUpperCase().replace("_", " ")}
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-slate-500 font-sans">{pol.rules_json?.restrictions || "None"}</td>
-                  <td className="py-4 px-6 text-right">
+                  <td className="py-3 px-5 text-slate-500">{pol.rules_json?.restrictions || "None"}</td>
+                  <td className="py-3 px-5 text-right">
                     <button
                       onClick={() => handleDeletePolicy(pol.id)}
-                      className="text-rose-600 hover:text-rose-700 font-semibold hover:underline"
+                      className="text-rose-600 hover:text-rose-700 font-bold transition hover:underline"
                     >
                       Delete
                     </button>

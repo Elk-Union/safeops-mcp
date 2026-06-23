@@ -61,6 +61,7 @@ def init_system():
                 {"name": "update_package", "category": "packages", "description": "Upgrades/installs a specific package.", "base_risk": 5.0, "requires_approval_above": 5.0, "rollback_available": True},
                 {"name": "remove_package", "category": "packages", "description": "Uninstalls a package.", "base_risk": 7.0, "requires_approval_above": 5.0, "rollback_available": True},
                 {"name": "package_info", "category": "packages", "description": "Shows package metadata.", "base_risk": 1.0, "requires_approval_above": 5.0, "rollback_available": False},
+                {"name": "pacman_package", "category": "packages", "description": "Manages system packages via pacman package manager on Arch Linux host.", "base_risk": 8.0, "requires_approval_above": 5.0, "rollback_available": True},
                 # Services
                 {"name": "start_service", "category": "services", "description": "Starts a systemd or docker service.", "base_risk": 4.0, "requires_approval_above": 5.0, "rollback_available": True},
                 {"name": "stop_service", "category": "services", "description": "Stops a systemd or docker service.", "base_risk": 6.0, "requires_approval_above": 5.0, "rollback_available": True},

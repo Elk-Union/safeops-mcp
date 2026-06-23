@@ -86,3 +86,38 @@ def get_current_client(
     client.last_active = datetime.utcnow()
     db.commit()
     return client
+
+# Dependency to authenticate and fetch either the active User or Client
+def get_current_user_or_client(
+    credentials: HTTPAuthorizationCredentials = Security(security_bearer),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+    token_hash = hash_token(token)
+    
+    client = db.query(ClientRegistry).filter(
+        ClientRegistry.api_token_hash == token_hash,
+        ClientRegistry.is_active == True
+    ).first()
+    
+    if client:
+        client.last_active = datetime.utcnow()
+        db.commit()
+        return client
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is not None:
+            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+            if user:
+                return user
+    except JWTError:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials for client or user",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+

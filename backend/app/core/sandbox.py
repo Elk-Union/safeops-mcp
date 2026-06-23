@@ -24,7 +24,7 @@ class SandboxExecutor:
                 # Docker daemon not running or socket permissions missing
                 self.client = None
 
-    def execute_in_docker(self, cmd_args: List[str], env: Dict[str, str], read_only_root: bool) -> Dict[str, Any]:
+    def execute_in_docker(self, cmd_args: List[str], env: Dict[str, str], read_only_root: bool, log_filepath: str = None) -> Dict[str, Any]:
         """
         Executes command in a transient Docker container with CPU, Memory, and Network restrictions.
         """
@@ -52,13 +52,46 @@ class SandboxExecutor:
 
                 container.start()
                 
-                # Await completion with timeout
-                result = container.wait(timeout=self.timeout)
-                exit_code = result.get("StatusCode", -1)
+                # Write initial empty file or make sure directory exists
+                if log_filepath:
+                    os.makedirs(os.path.dirname(log_filepath), exist_ok=True)
+                    with open(log_filepath, "w", encoding="utf-8") as f:
+                        f.write("")
 
-                # Fetch log output streams
-                stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
-                stderr = container.logs(stdout=False, stderr=True).decode("utf-8")
+                # Poll logs in a loop while container runs
+                start_time = time.time()
+                while True:
+                    container.reload()
+                    status = container.status
+                    
+                    if log_filepath:
+                        try:
+                            # Fetch current log buffer and write to the file
+                            logs = container.logs(stdout=True, stderr=True).decode("utf-8", errors="ignore")
+                            with open(log_filepath, "w", encoding="utf-8") as f:
+                                f.write(logs)
+                        except Exception:
+                            pass
+                    
+                    if status != "running":
+                        break
+                        
+                    if time.time() - start_time > self.timeout:
+                        try:
+                            container.kill()
+                        except Exception:
+                            pass
+                        raise TimeoutError("Docker container execution timed out.")
+                        
+                    time.sleep(0.15)
+
+                # Fetch final log output streams
+                stdout = container.logs(stdout=True, stderr=False).decode("utf-8", errors="ignore")
+                stderr = container.logs(stdout=False, stderr=True).decode("utf-8", errors="ignore")
+                
+                # Await completion to get exit status
+                result = container.wait(timeout=2)
+                exit_code = result.get("StatusCode", -1)
 
                 # Remove container
                 container.remove(force=True)
@@ -82,7 +115,7 @@ class SandboxExecutor:
                     "error": f"Docker Sandbox Error: {str(e)}"
                 }
 
-    def execute_in_local_fallback(self, cmd_args: List[str], env: Dict[str, str]) -> Dict[str, Any]:
+    def execute_in_local_fallback(self, cmd_args: List[str], env: Dict[str, str], log_filepath: str = None) -> Dict[str, Any]:
         """
         Fallback command execution using systemd-run or low-privilege subprocess if Docker is unavailable.
         """
@@ -93,6 +126,18 @@ class SandboxExecutor:
         proc_env = os.environ.copy()
         if env:
             proc_env.update(env)
+
+        # Prepend the virtual environment bin directory to the subprocess PATH
+        import sys
+        venv_bin = os.path.dirname(sys.executable)
+        if venv_bin:
+            proc_env["PATH"] = venv_bin + os.path.pathsep + proc_env.get("PATH", "")
+
+        # Resolve command arguments to absolute paths if they exist in the virtual environment bin folder
+        if venv_bin and len(cmd_args) > 0:
+            local_exe = os.path.join(venv_bin, cmd_args[0])
+            if os.path.isfile(local_exe) and os.access(local_exe, os.X_OK):
+                cmd_args = [local_exe] + cmd_args[1:]
 
         # Clear proxy settings to restrict network exfiltrations locally
         for k in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
@@ -115,20 +160,39 @@ class SandboxExecutor:
             run_cmd = cmd_args
 
         try:
-            # Execute command synchronously with timeout
-            proc = subprocess.run(
-                run_cmd,
-                env=proc_env,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout
-            )
-            return {
-                "exit_code": proc.returncode,
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
-                "error": None
-            }
+            if log_filepath:
+                os.makedirs(os.path.dirname(log_filepath), exist_ok=True)
+                with open(log_filepath, "w", encoding="utf-8") as log_file:
+                    proc = subprocess.run(
+                        run_cmd,
+                        env=proc_env,
+                        stdout=log_file,
+                        stderr=subprocess.STDOUT,
+                        timeout=self.timeout
+                    )
+                with open(log_filepath, "r", encoding="utf-8") as log_file:
+                    stdout_content = log_file.read()
+                return {
+                    "exit_code": proc.returncode,
+                    "stdout": stdout_content,
+                    "stderr": "",
+                    "error": None
+                }
+            else:
+                # Execute command synchronously with timeout
+                proc = subprocess.run(
+                    run_cmd,
+                    env=proc_env,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout
+                )
+                return {
+                    "exit_code": proc.returncode,
+                    "stdout": proc.stdout,
+                    "stderr": proc.stderr,
+                    "error": None
+                }
         except subprocess.TimeoutExpired as te:
             return {
                 "exit_code": -1,
@@ -144,11 +208,11 @@ class SandboxExecutor:
                 "error": f"Local Sandbox Error: {str(e)}"
             }
 
-    def execute(self, cmd_args: List[str], env: Dict[str, str] = None, read_only_root: bool = True) -> Dict[str, Any]:
+    def execute(self, cmd_args: List[str], env: Dict[str, str] = None, read_only_root: bool = True, log_filepath: str = None) -> Dict[str, Any]:
         """
         Execute command with sandbox routing (Docker -> Systemd -> Local subprocess).
         """
         if self.client:
-            return self.execute_in_docker(cmd_args, env, read_only_root)
+            return self.execute_in_docker(cmd_args, env, read_only_root, log_filepath)
         else:
-            return self.execute_in_local_fallback(cmd_args, env)
+            return self.execute_in_local_fallback(cmd_args, env, log_filepath)

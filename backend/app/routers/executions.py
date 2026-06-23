@@ -3,11 +3,17 @@ from sqlalchemy.orm import Session
 import datetime
 import urllib.request
 import re
+import os
+import shutil
+try:
+    import docker
+except ImportError:
+    docker = None
 from typing import Dict, Any, List
 from ..database import get_db
 from ..schemas import ExecutionRequest, ExecutionResponse
-from ..models import MCPTool, ClientRegistry, ToolExecution, ApprovalRequest, RiskAssessment
-from ..core.auth_utils import get_current_client
+from ..models import MCPTool, ClientRegistry, ToolExecution, ApprovalRequest, RiskAssessment, User
+from ..core.auth_utils import get_current_client, get_current_user, get_current_user_or_client
 from ..core.safety import SafetyClassifier
 from ..core.risk import RiskEngine
 from ..core.policy import PolicyEngine
@@ -47,6 +53,37 @@ def secure_fetch_markdown(url: str) -> str:
     except Exception as e:
         return f"Error fetching documentation guide: {str(e)}"
 
+def is_docker_active() -> bool:
+    if not docker:
+        return False
+    try:
+        client = docker.from_env()
+        client.ping()
+        return True
+    except Exception:
+        return False
+
+def get_target_package_manager() -> str:
+    """
+    Returns 'apk' if Docker sandbox is active, otherwise detects host package manager.
+    """
+    if is_docker_active():
+        return "apk"
+        
+    if shutil.which("pacman"):
+        return "pacman"
+    elif shutil.which("apt-get"):
+        return "apt"
+    elif shutil.which("dnf"):
+        return "dnf"
+    elif shutil.which("yum"):
+        return "yum"
+    elif shutil.which("brew"):
+        return "brew"
+    elif shutil.which("apk"):
+        return "apk"
+    return "apk" # Default fallback
+
 def resolve_command_args(tool_name: str, arguments: Dict[str, Any]) -> List[str]:
     """
     Translates tool parameters into concrete sandboxed execution arguments.
@@ -62,20 +99,60 @@ def resolve_command_args(tool_name: str, arguments: Dict[str, Any]) -> List[str]
     elif tool_name == "system_health":
         return ["sh", "-c", "uptime && free -m && df -h"]
     elif tool_name == "check_updates":
-        return ["apk", "update"] # Assuming Alpine sandbox target
+        pm = get_target_package_manager()
+        if pm == "pacman":
+            return ["pacman", "-Sy"]
+        elif pm == "apt":
+            return ["sudo", "-n", "apt-get", "update"]
+        elif pm == "dnf":
+            return ["dnf", "check-update"]
+        elif pm == "brew":
+            return ["brew", "update"]
+        else:
+            return ["apk", "update"]
     elif tool_name == "package_info":
         pkg = arguments.get("package_name", "curl")
-        return ["apk", "info", pkg]
+        pm = get_target_package_manager()
+        if pm == "pacman":
+            return ["pacman", "-Si", pkg]
+        elif pm == "apt":
+            return ["apt-cache", "show", pkg]
+        elif pm == "dnf":
+            return ["dnf", "info", pkg]
+        elif pm == "brew":
+            return ["brew", "info", pkg]
+        else:
+            return ["apk", "info", pkg]
     elif tool_name == "update_package":
         pkg = arguments.get("package_name")
         if not pkg:
             raise HTTPException(status_code=400, detail="Missing 'package_name' parameter")
-        return ["apk", "add", pkg]
+        pm = get_target_package_manager()
+        if pm == "pacman":
+            return ["sudo", "-n", "pacman", "-S", "--noconfirm", pkg]
+        elif pm == "apt":
+            return ["sudo", "-n", "apt-get", "install", "-y", pkg]
+        elif pm == "dnf":
+            return ["sudo", "-n", "dnf", "install", "-y", pkg]
+        elif pm == "brew":
+            return ["brew", "install", pkg]
+        else:
+            return ["apk", "add", pkg]
     elif tool_name == "remove_package":
         pkg = arguments.get("package_name")
         if not pkg:
             raise HTTPException(status_code=400, detail="Missing 'package_name' parameter")
-        return ["apk", "del", pkg]
+        pm = get_target_package_manager()
+        if pm == "pacman":
+            return ["sudo", "-n", "pacman", "-R", "--noconfirm", pkg]
+        elif pm == "apt":
+            return ["sudo", "-n", "apt-get", "remove", "-y", pkg]
+        elif pm == "dnf":
+            return ["sudo", "-n", "dnf", "remove", "-y", pkg]
+        elif pm == "brew":
+            return ["brew", "uninstall", pkg]
+        else:
+            return ["apk", "del", pkg]
     elif tool_name == "service_status":
         service = arguments.get("service_name", "")
         return ["rc-service", service, "status"]
@@ -93,6 +170,22 @@ def resolve_command_args(tool_name: str, arguments: Dict[str, Any]) -> List[str]
         # Concat scripts securely
         script = "\n".join(cmds)
         return ["sh", "-c", script]
+    elif tool_name == "pacman_package":
+        op = arguments.get("operation", "install").lower()
+        pkg = arguments.get("package_name")
+        if not pkg and op in ["install", "remove", "query"]:
+            raise HTTPException(status_code=400, detail="Missing 'package_name' parameter for this operation")
+        
+        if op == "install":
+            return ["sudo", "-n", "pacman", "-S", "--noconfirm", pkg]
+        elif op == "remove":
+            return ["sudo", "-n", "pacman", "-R", "--noconfirm", pkg]
+        elif op == "upgrade":
+            return ["sudo", "-n", "pacman", "-Syu", "--noconfirm"]
+        elif op == "query":
+            return ["pacman", "-Qi", pkg]
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid pacman operation: {op}")
     else:
         raise HTTPException(status_code=400, detail="Command execution mapping not found")
 
@@ -352,7 +445,8 @@ def run_sandbox_execution(
     try:
         cmd_args = resolve_command_args(tool_name, arguments)
         executor = SandboxExecutor()
-        result = executor.execute(cmd_args)
+        log_filepath = f"/tmp/safeops_sandbox_{execution.id}.log"
+        result = executor.execute(cmd_args, log_filepath=log_filepath)
         
         execution.exit_code = result["exit_code"]
         execution.stdout = result["stdout"]
@@ -407,3 +501,58 @@ def run_sandbox_execution(
         risk_score=risk_score,
         risk_explanation=execution.risk_assessment.explanation
     )
+
+@router.get("/{execution_id}/live-logs")
+def get_live_logs(
+    execution_id: str,
+    db: Session = Depends(get_db),
+    current_user_or_client = Depends(get_current_user_or_client)
+):
+    execution = db.query(ToolExecution).filter(ToolExecution.id == execution_id).first()
+    if not execution:
+        raise HTTPException(status_code=404, detail="Execution record not found")
+        
+    log_filepath = f"/tmp/safeops_sandbox_{execution_id}.log"
+    logs = ""
+    
+    if os.path.exists(log_filepath):
+        try:
+            with open(log_filepath, "r", encoding="utf-8") as f:
+                logs = f.read()
+        except Exception as e:
+            logs = f"Error reading logs: {str(e)}"
+    else:
+        # Fallback to database values
+        stdout = execution.stdout or ""
+        stderr = execution.stderr or ""
+        logs = stdout
+        if stderr:
+            logs += f"\n--- STDERR ---\n{stderr}"
+            
+    return {
+        "id": execution.id,
+        "status": execution.status,
+        "logs": logs
+    }
+
+@router.get("/")
+def list_executions(
+    limit: int = 15,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    executions = db.query(ToolExecution).order_by(ToolExecution.created_at.desc()).limit(limit).all()
+    res = []
+    for e in executions:
+        res.append({
+            "id": e.id,
+            "tool_name": e.tool.name,
+            "arguments": e.arguments,
+            "environment": e.environment,
+            "status": e.status,
+            "exit_code": e.exit_code,
+            "created_at": e.created_at,
+            "completed_at": e.completed_at,
+            "risk_score": e.risk_assessment.risk_score if e.risk_assessment else 0.0
+        })
+    return res
