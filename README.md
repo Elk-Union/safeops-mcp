@@ -12,6 +12,8 @@
 
 </div>
 
+**Documentation**: [elk-union.github.io/safeops-mcp/](https://elk-union.github.io/safeops-mcp/)
+
 ---
 
 ## What is SafeOps MCP?
