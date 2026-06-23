@@ -30,8 +30,6 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: startup.md
-  - Architecture KB: architecture_kb.md
-  - Public Accessibility: public_accessibility.md
 
 markdown_extensions:
   - pymdownx.highlight:
