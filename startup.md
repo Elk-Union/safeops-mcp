@@ -91,3 +91,57 @@ Replace `/path/to/safeops-mcp` with the absolute path to this repository and `<S
 
 1. **Dashboard Check**: Open `http://localhost:3000`, log in using `admin@safeops.io` and password `safeops-admin`. Verify that stats are populated and the 16 tools are listed.
 2. **Audit Check**: Run an agent command and confirm the execution record appears on the overview page.
+
+---
+
+## 🛠️ Troubleshooting & Error Resolutions
+
+Here are common error states you may encounter during setup and how to resolve them:
+
+### 1. Port Conflict (`Address already in use`)
+* **Error**: `OSError: [Errno 98] Address already in use` (for port 8000 or 3000).
+* **Cause**: Another process is already running on the required port.
+* **Resolution**: Identify the process using the port and terminate it:
+  ```bash
+  # Identify and kill process on port 8000 (FastAPI)
+  lsof -t -i:8000 | xargs kill -9
+  
+  # Identify and kill process on port 3000 (Next.js)
+  lsof -t -i:3000 | xargs kill -9
+  ```
+
+### 2. Docker Permission Denied in Sandbox
+* **Error**: `docker.errors.DockerException: Error while fetching server API version: Permission denied`
+* **Cause**: The current user running the backend process does not have permission to access the Docker daemon socket (`/var/run/docker.sock`).
+* **Resolution**: Add the current user to the `docker` group, then log out and log back in:
+  ```bash
+  sudo usermod -aG docker $USER
+  ```
+  Alternatively, ensure the Docker daemon is actually running:
+  ```bash
+  sudo systemctl start docker
+  ```
+
+### 3. Module Import Errors (`ModuleNotFoundError`)
+* **Error**: `ModuleNotFoundError: No module named 'app'`
+* **Cause**: Running python commands from outside the `backend/` directory without setting the python path.
+* **Resolution**: Always navigate to the `backend` directory before running scripts, or prepend the directory path:
+  ```bash
+  cd backend
+  PYTHONPATH=. python3 app/main.py
+  ```
+
+### 4. Database Lock Errors
+* **Error**: `sqlite3.OperationalError: database is locked`
+* **Cause**: Multiple python processes or uvicorn threads are writing to the SQLite database concurrently, causing locking.
+* **Resolution**: Terminate hanging python processes:
+  ```bash
+  pkill -f uvicorn
+  pkill -f python
+  ```
+
+### 5. Infinite Login Redirect Loops
+* **Error**: Inputting correct login credentials instantly redirects you back to the `/login` view without showing the dashboard.
+* **Cause**: The Next.js dev server proxy and FastAPI trailing slash redirect rules are clashing, stripping the `Authorization` header during a `307/308` redirect chain.
+* **Resolution**: Ensure the frontend is calling the absolute backend URL (`http://localhost:8000/api/v1/...`) directly, bypassing Next.js trailing slash rewrites. Verify the backend CORS allows requests from `http://localhost:3000`.
+
