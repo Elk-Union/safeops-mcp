@@ -104,6 +104,17 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "string",
                 "description": "Optional configuration directory target (e.g. '~/.config/nvim') to backup."
             }
+        elif tool["name"] == "pacman_package":
+            properties["operation"] = {
+                "type": "string",
+                "enum": ["install", "remove", "upgrade", "query"],
+                "description": "The pacman operation to perform (install, remove, upgrade, query)."
+            }
+            required.append("operation")
+            properties["package_name"] = {
+                "type": "string",
+                "description": "The name of the package (optional for 'upgrade')."
+            }
 
         # Inject standard target_dir parameter for tools supporting rollbacks
         if tool["rollback_available"] and "target_dir" not in properties:
@@ -124,6 +135,22 @@ async def handle_list_tools() -> list[types.Tool]:
             )
         )
         
+    mcp_tools.append(
+        types.Tool(
+            name="check_execution",
+            description="Checks the status and retrieves live logs of a sandboxed execution by its execution ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "execution_id": {
+                        "type": "string",
+                        "description": "The unique UUID of the execution to check."
+                    }
+                },
+                "required": ["execution_id"]
+            }
+        )
+    )
     return mcp_tools
 
 @server.call_tool()
@@ -142,6 +169,31 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
                 text=f"SafeOps Backend URL: {BACKEND_URL}\nConnection status: {status}\nDynamic tools count: {len(tools)}."
             )
         ]
+
+    if name == "check_execution":
+        if not arguments or "execution_id" not in arguments:
+            return [types.TextContent(type="text", text="Error: Missing execution_id parameter.")]
+        execution_id = arguments["execution_id"]
+        try:
+            headers = {"Authorization": f"Bearer {API_TOKEN}"}
+            url = f"{BACKEND_URL}/api/v1/executions/{execution_id}/live-logs"
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                status = result.get("status")
+                logs = result.get("logs", "")
+                output = f"Execution ID: {execution_id}\nExecution Status: {status}\n"
+                if logs:
+                    output += f"\n--- LOGS ---\n{logs}\n"
+                else:
+                    output += "\n(No logs available yet)\n"
+                return [types.TextContent(type="text", text=output)]
+            elif response.status_code == 404:
+                return [types.TextContent(type="text", text=f"Error: Execution with ID '{execution_id}' not found.")]
+            else:
+                return [types.TextContent(type="text", text=f"Error checking execution: API status {response.status_code}")]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Error calling live-logs API: {str(e)}")]
 
     if not API_TOKEN:
         return [
@@ -180,11 +232,13 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         elif response.status_code == 202:
             # Requires approval
             result = response.json()
+            exec_id = result.get("id")
             message = (
-                f"⚠️ [PENDING APPROVAL] The request to run '{name}' has a risk score of "
-                f"{result.get('risk_score')} and requires administrator authorization. "
+                f"[PENDING APPROVAL] The request to run '{name}' has a risk score of "
+                f"{result.get('risk_score')} and requires administrator authorization.\n"
+                f"Execution ID: {exec_id}\n"
                 f"Please review and approve the request here: {result.get('approval_url')}\n"
-                f"Once approved, you can continue the task."
+                f"You can monitor or poll the status using the check_execution tool with execution_id='{exec_id}'."
             )
             return [types.TextContent(type="text", text=message)]
             

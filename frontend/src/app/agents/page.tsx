@@ -12,7 +12,7 @@ const ROLE_MAP: { [key: string]: string } = {
 export default function ConnectedAgentsPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [name, setName] = useState("");
-  const [roleId, setRoleId] = useState("6e2489e8-4572-49c2-a4bc-6da507a1d0ec"); // operator UUID
+  const [roleId, setRoleId] = useState("6e2489e8-4572-49c2-a4bc-6da507a1d0ec");
   const [whitelist, setWhitelist] = useState("127.0.0.1");
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -130,43 +130,43 @@ export default function ConnectedAgentsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold tracking-tight text-slate-800">Client Agent Registries</h2>
-        <p className="text-slate-500 text-xs mt-1">Manage connection keys, whitelist IPs, and assign governance scopes for connecting editors.</p>
+        <h2 className="text-lg font-bold tracking-tight text-slate-800">Connected Agents</h2>
+        <p className="text-slate-500 text-xs mt-0.5">Manage keys and security roles for editor integrations.</p>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Register Agent Form */}
-        <div className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
-          <h3 className="font-mono text-[10px] tracking-wider font-bold text-slate-400 uppercase">Register Client Agent</h3>
+        <div className="lg:col-span-1 bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+          <h3 className="font-mono text-[9px] tracking-wider font-bold text-slate-400 uppercase">Register Client Agent</h3>
           
-          <form onSubmit={handleRegisterAgent} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+          <form onSubmit={handleRegisterAgent} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
               Client Name
               <input
                 type="text"
-                placeholder="e.g. Claude Code Local"
+                placeholder="e.g. Claude Code"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-650 focus:bg-white transition"
                 required
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
               Governance Role
               <select
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none"
               >
                 {Object.entries(ROLE_MAP).map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
@@ -174,28 +174,27 @@ export default function ConnectedAgentsPage() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
-              IP Whitelist CIDR
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+              IP Whitelist
               <input
                 type="text"
-                placeholder="e.g. 127.0.0.1, 10.0.0.0/16"
+                placeholder="e.g. 127.0.0.1"
                 value={whitelist}
                 onChange={(e) => setWhitelist(e.target.value)}
-                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-650 focus:bg-white transition"
               />
             </div>
 
-            <button type="submit" className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition mt-2">
+            <button type="submit" className="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition mt-1">
               Register Agent Session
             </button>
           </form>
 
-          {/* Generated token display banner */}
           {generatedToken && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col gap-2 mt-2">
-              <span className="text-[10px] font-mono text-emerald-700 font-bold uppercase">Token Generated Successfully</span>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5 flex flex-col gap-1.5 mt-1">
+              <span className="text-[9px] font-mono text-emerald-700 font-bold uppercase">Token Generated</span>
               <p className="text-[10px] text-slate-500 leading-normal">Copy this token into your editor configuration settings. It will not be shown again.</p>
-              <code className="bg-slate-900 p-2.5 rounded-lg text-xs text-white font-mono border border-slate-800 break-all">
+              <code className="bg-slate-900 p-2 rounded text-[11px] text-white font-mono border border-slate-800 break-all select-all">
                 {generatedToken}
               </code>
             </div>
@@ -203,43 +202,43 @@ export default function ConnectedAgentsPage() {
         </div>
 
         {/* Active Agents list */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="font-mono text-[10px] tracking-wider font-bold text-slate-400 uppercase">Registered Clients</h3>
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100">
+            <h3 className="font-mono text-[9px] tracking-wider font-bold text-slate-400 uppercase">Registered Clients</h3>
           </div>
           
           {loading ? (
-            <div className="p-8 text-center text-slate-400 text-xs">Loading client agents catalog...</div>
+            <div className="p-6 text-center text-slate-400 text-xs">Loading client agents catalog...</div>
           ) : agents.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs">No client agents registered in the database.</div>
+            <div className="p-6 text-center text-slate-400 text-xs">No client agents registered in the database.</div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 text-xs font-mono">
-                  <th className="py-3 px-6">Name</th>
-                  <th className="py-3 px-6">Assigned Role</th>
-                  <th className="py-3 px-6">IP Constraints</th>
-                  <th className="py-3 px-6 font-mono text-center">Active Status</th>
-                  <th className="py-3 px-6 text-right">Action</th>
+                <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 text-[10px] font-mono">
+                  <th className="py-2.5 px-5">Name</th>
+                  <th className="py-2.5 px-5">Role</th>
+                  <th className="py-2.5 px-5">IP Whitelist</th>
+                  <th className="py-2.5 px-5 text-center">Status</th>
+                  <th className="py-2.5 px-5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="text-xs divide-y divide-slate-100">
                 {agents.map((agent) => (
-                  <tr key={agent.id} className="hover:bg-slate-50/40 transition">
-                    <td className="py-4 px-6 font-bold text-slate-700">{agent.name}</td>
-                    <td className="py-4 px-6 font-mono text-[10px] text-indigo-600 uppercase font-bold">
+                  <tr key={agent.id} className="hover:bg-slate-50/20 transition">
+                    <td className="py-3 px-5 font-bold text-slate-700">{agent.name}</td>
+                    <td className="py-3 px-5 font-mono text-[10px] text-indigo-650 uppercase font-bold">
                       {ROLE_MAP[agent.role_id] || agent.role_id}
                     </td>
-                    <td className="py-4 px-6 font-mono text-[10px] text-slate-500">{agent.ip_whitelist || "None Whitelisted"}</td>
-                    <td className="py-4 px-6 text-center font-bold font-mono">
+                    <td className="py-3 px-5 font-mono text-[10px] text-slate-500">{agent.ip_whitelist || "None"}</td>
+                    <td className="py-3 px-5 text-center font-bold font-mono text-[10px]">
                       <span className={agent.is_active ? "text-emerald-600" : "text-slate-400"}>
                         {agent.is_active ? "ACTIVE" : "INACTIVE"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-3 px-5 text-right">
                       <button
                         onClick={() => handleRevokeAgent(agent.id)}
-                        className="text-rose-600 hover:text-rose-700 font-semibold hover:underline"
+                        className="text-rose-655 hover:text-rose-700 font-bold transition hover:underline"
                       >
                         Revoke
                       </button>

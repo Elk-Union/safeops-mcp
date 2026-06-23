@@ -248,6 +248,7 @@ Once configured, the AI agent can use all 16 SafeOps tools:
 | `ram_usage` | system | 1.0 | Memory utilization |
 | `disk_usage` | system | 1.0 | Disk partition metrics |
 | `system_health` | system | 1.0 | Combined health diagnostic |
+| `check_execution` | system | 1.0 | Poll execution status and retrieve live logs |
 | `check_updates` | packages | 2.0 | Check available package updates |
 | `update_package` | packages | 5.0 | Install/upgrade a package |
 | `remove_package` | packages | 7.0 | Uninstall a package |
@@ -334,6 +335,7 @@ Interactive Swagger docs available at `http://localhost:8000/docs` when the back
 | `POST` | `/api/v1/policies/` | Create a security policy |
 | `GET` | `/api/v1/policies/` | List all policies |
 | `POST` | `/api/v1/executions/` | Execute a tool through the safety pipeline |
+| `GET` | `/api/v1/executions/{id}/live-logs` | Fetch real-time stdout/stderr sandbox logs |
 | `GET` | `/api/v1/approvals/` | List approval requests |
 | `POST` | `/api/v1/approvals/{id}` | Approve/reject a request |
 | `GET` | `/api/v1/audit/` | Query audit logs |

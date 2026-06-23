@@ -16,7 +16,7 @@ def list_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(ApprovalRequest)
+    query = db.query(ApprovalRequest).order_by(ApprovalRequest.created_at.desc())
     if status_filter:
         query = query.filter(ApprovalRequest.status == status_filter.upper())
     

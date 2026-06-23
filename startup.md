@@ -4,6 +4,39 @@ This guide is designed for developers and AI agents (such as Claude Code, Cursor
 
 ---
 
+## 🐋 Docker Sandbox Prerequisite
+
+SafeOps requires **Docker** to run system commands inside isolated sandbox containers. If Docker is not running, SafeOps will run in restricted local fallback mode.
+
+### Setup Docker on Arch Linux:
+```bash
+# 1. Install Docker package
+sudo pacman -S --noconfirm docker
+
+# 2. Start and enable Docker service
+sudo systemctl enable --now docker
+
+# 3. Grant access permissions to the socket
+sudo usermod -aG docker $USER
+# Or temporarily grant permissions to the socket for the current session:
+sudo chmod 666 /var/run/docker.sock
+```
+
+### Setup Docker on Ubuntu/Debian:
+```bash
+# 1. Install Docker
+sudo apt-get update && sudo apt-get install -y docker.io
+
+# 2. Start and enable service
+sudo systemctl enable --now docker
+
+# 3. Grant socket permissions
+sudo usermod -aG docker $USER
+sudo chmod 666 /var/run/docker.sock
+```
+
+---
+
 ## 🛠️ Automated Setup Steps
 
 Follow these steps in sequence to set up the backend database, seed defaults, register an operator agent, and install dependencies.
